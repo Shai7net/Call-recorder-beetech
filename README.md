@@ -17,8 +17,8 @@ On Windows, you can also double-click `Run_Local_Server.bat`.
 
 Do not open `index.html` or `dist/index.html` directly with a `file://` URL.
 Browser JavaScript modules and microphone access require the app to be served
-over HTTP. Production hosting must use HTTPS for microphone access; Netlify
-provides HTTPS automatically.
+over HTTP. Production hosting must use HTTPS for microphone access; GitHub
+Pages provides HTTPS automatically.
 
 To test the production build locally:
 
