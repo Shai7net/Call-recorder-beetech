@@ -1,0 +1,6 @@
+{
+  "name": "BeeTech BT-REC02 Recorder Demo",
+  "description": "Interactive, 3D WebGL B2B product showcase for the BeeTech BT-REC02 Digital Voice Recorder. Features full 3D model interaction, simulated recording interactions with the microphone API, and a bilingual interface.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
