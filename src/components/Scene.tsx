@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Environment, Html, RoundedBox, Cylinder, Plane, Text, ContactShadows, SpotLight } from "@react-three/drei";
 import * as THREE from "three";
 import { useAppContext } from "../AppContext";
@@ -29,7 +29,12 @@ const ScreenContent = ({ position }: { position: [number, number, number] }) => 
     
     return (
         <Plane args={[2.0, 1.5]} position={position}>
-            <meshStandardMaterial color="#1a1c1e" roughness={0.4} />
+            <meshStandardMaterial
+                color={deviceState === "off" ? "#090a0b" : "#031206"}
+                emissive={deviceState === "off" ? "#000000" : "#0b3b18"}
+                emissiveIntensity={deviceState === "off" ? 0 : 0.65}
+                roughness={0.28}
+            />
             <Html transform distanceFactor={5} position={[0, 0, 0.005]} style={{ width: '200px', height: '150px' }}>
                <div ref={htmlContainerRef} className="w-full h-full p-[8px] flex flex-col justify-between overflow-hidden transition-all duration-300" 
                     style={{ 
@@ -39,6 +44,15 @@ const ScreenContent = ({ position }: { position: [number, number, number] }) => 
                         background: deviceState === "off" ? 'transparent' : '#031206',
                         visibility: deviceState === "off" ? 'hidden' : 'visible'
                     }}>
+                   {deviceState === "booting" && (
+                       <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                           <div className="text-[22px] font-black tracking-[0.2em] animate-pulse">BEETECH</div>
+                           <div className="w-24 h-[2px] overflow-hidden bg-[#4ade80]/20">
+                               <div className="h-full bg-[#4ade80] animate-[pulse_0.8s_ease-in-out_infinite]"></div>
+                           </div>
+                           <div className="text-[10px] tracking-[0.28em] text-[#4ade80]/70">POWERING ON</div>
+                       </div>
+                   )}
                    {deviceState === "idle" && (
                        <div className="w-full h-full flex flex-col text-[12px] leading-tight font-bold">
                            <div className="flex justify-between items-center mb-1">
@@ -138,10 +152,10 @@ const Hotspot = ({ position, label, description, id }: HotspotProps) => {
                 >
                     <div className={`absolute top-1/2 -translate-y-1/2 flex items-center pointer-events-none ${isHe ? 'flex-row-reverse right-0' : 'flex-row left-0'}`}>
                         {/* Connecting Line */}
-                        <div className={`h-[1px] bg-[#4ade80] origin-[${isHe ? 'right' : 'left'}] transition-all duration-500 ease-out ${isActive ? 'w-16 md:w-32 opacity-100 scale-x-100' : 'w-8 md:w-16 opacity-30 scale-x-100'}`}></div>
+                        <div className={`h-[1px] bg-[#4ade80] origin-[${isHe ? 'right' : 'left'}] transition-all duration-500 ease-out ${isActive ? 'w-16 md:w-32 opacity-100 scale-x-100' : 'w-8 md:w-16 opacity-0 md:opacity-30 scale-x-100'}`}></div>
                         
                         {/* Label Container */}
-                        <div className={`transition-all duration-300 ease-in-out whitespace-nowrap ml-2 mr-2 ${isActive ? 'opacity-100 transform-none text-[#4ade80]' : 'opacity-60 scale-95 text-white/50'}`}>
+                        <div className={`transition-all duration-300 ease-in-out whitespace-nowrap ml-2 mr-2 ${isActive ? 'opacity-100 transform-none text-[#4ade80]' : 'opacity-0 md:opacity-60 scale-95 text-white/50'}`}>
                             <div className="font-mono tracking-widest uppercase text-[13px] md:text-[15px] font-bold">
                                 {label}
                             </div>
@@ -154,7 +168,8 @@ const Hotspot = ({ position, label, description, id }: HotspotProps) => {
 };
 
 const PowerSwitch = () => {
-    const { deviceState, setDeviceState } = useAppContext();
+    const { deviceState, setPower } = useAppContext();
+    const controls = useThree((state) => state.controls) as unknown as { enabled: boolean } | undefined;
     const groupRef = useRef<THREE.Group>(null);
     const [isDragging, setIsDragging] = useState(false);
     const dragStartY = useRef(0);
@@ -163,8 +178,8 @@ const PowerSwitch = () => {
 
     useFrame(() => {
         if (groupRef.current && !isDragging) {
-            const targetY = deviceState !== "off" ? 0.18 : -0.18;
-            groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.15;
+            const targetY = deviceState !== "off" ? 0.34 : -0.34;
+            groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.18;
         }
     });
 
@@ -173,7 +188,8 @@ const PowerSwitch = () => {
         setIsDragging(true);
         movedDuringDrag.current = false;
         dragStartY.current = e.point.y;
-        startMeshY.current = groupRef.current?.position.y || -0.18;
+        startMeshY.current = groupRef.current?.position.y || -0.34;
+        if (controls) controls.enabled = false;
         e.target.setPointerCapture(e.pointerId);
         document.body.style.cursor = 'ns-resize';
     };
@@ -186,7 +202,7 @@ const PowerSwitch = () => {
             movedDuringDrag.current = true;
         }
         let newY = startMeshY.current + deltaY;
-        newY = Math.max(-0.18, Math.min(0.18, newY));
+        newY = Math.max(-0.34, Math.min(0.34, newY));
         groupRef.current.position.y = newY;
     };
 
@@ -195,22 +211,28 @@ const PowerSwitch = () => {
         e.stopPropagation();
         setIsDragging(false);
         e.target.releasePointerCapture(e.pointerId);
+        if (controls) controls.enabled = true;
         document.body.style.cursor = 'auto';
         
         if (movedDuringDrag.current && groupRef.current) {
-            if (groupRef.current.position.y > 0) {
-                setDeviceState('idle');
-            } else {
-                setDeviceState('off');
-            }
+            setPower(groupRef.current.position.y > 0);
         }
     };
 
     const handleClick = (e: any) => {
         e.stopPropagation();
+        setIsDragging(false);
+        if (controls) controls.enabled = true;
+        document.body.style.cursor = 'auto';
         if (!movedDuringDrag.current) {
-            setDeviceState(s => s === 'off' ? 'idle' : 'off');
+            setPower(deviceState === 'off');
         }
+    };
+
+    const handlePointerCancel = () => {
+        setIsDragging(false);
+        if (controls) controls.enabled = true;
+        document.body.style.cursor = 'auto';
     };
 
     return (
@@ -219,23 +241,33 @@ const PowerSwitch = () => {
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
             onPointerEnter={() => document.body.style.cursor = 'ns-resize'}
             onPointerLeave={() => document.body.style.cursor = 'auto'}
             onClick={handleClick}
         >
-            <RoundedBox args={[0.3, 0.8, 0.08]} radius={0.15} smoothness={16}>
-                <meshStandardMaterial color="#0f172a" roughness={0.5} metalness={0.7} />
+            <RoundedBox args={[0.34, 1.32, 0.07]} radius={0.16} smoothness={16}>
+                <meshStandardMaterial color="#090b0d" roughness={0.35} metalness={0.75} />
+            </RoundedBox>
+            <RoundedBox args={[0.22, 1.0, 0.025]} radius={0.1} smoothness={12} position={[0, 0, 0.05]}>
+                <meshStandardMaterial color="#020304" roughness={0.8} />
             </RoundedBox>
 
-            <Plane args={[1.2, 2.0]} position={[0, 0, 0.08]}>
+            <Plane args={[1.25, 2.15]} position={[0, 0, 0.09]}>
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </Plane>
             
             {/* The animated physical switch */}
-            <group ref={groupRef} position={[0, -0.18, 0.05]} scale={[1, 1, 1]} rotation={[0, 0, 0]}>
+            <group ref={groupRef} position={[0, -0.34, 0.07]} scale={[1, 1, 1]} rotation={[0, 0, 0]}>
                 {/* Switch base */}
-                <RoundedBox args={[0.22, 0.35, 0.08]} radius={0.05} smoothness={16} position={[0, 0, 0]}>
-                    <meshStandardMaterial color="#cbd5e1" roughness={0.4} metalness={0.8} />
+                <RoundedBox args={[0.26, 0.38, 0.1]} radius={0.06} smoothness={16} position={[0, 0, 0]}>
+                    <meshStandardMaterial
+                        color={deviceState === "off" ? "#d8dde3" : "#f8fafc"}
+                        emissive={deviceState === "off" ? "#000000" : "#4ade80"}
+                        emissiveIntensity={deviceState === "off" ? 0 : 0.12}
+                        roughness={0.25}
+                        metalness={0.95}
+                    />
                 </RoundedBox>
                 {/* Grip ridges */}
                 <Cylinder args={[0.015, 0.015, 0.18, 8]} rotation={[0, 0, Math.PI/2]} position={[0, 0.05, 0.04]}>
@@ -249,9 +281,9 @@ const PowerSwitch = () => {
                 </Cylinder>
             </group>
 
-            <Text position={[0, 0.6, 0.065]} rotation={[0, 0, -Math.PI/2]} fontSize={0.12} color="#4ade80" anchorX="center" anchorY="middle">ON</Text>
-            <Text position={[0, -0.6, 0.065]} rotation={[0, 0, -Math.PI/2]} fontSize={0.12} color="#a3a3a3" anchorX="center" anchorY="middle">OFF</Text>
-            <Text position={[0, -0.9, 0.06]} rotation={[0, 0, -Math.PI/2]} fontSize={0.10} color="#666" anchorX="center" anchorY="middle">POWER</Text>
+            <Text position={[0, 0.88, 0.065]} rotation={[0, 0, -Math.PI/2]} fontSize={0.12} color="#4ade80" anchorX="center" anchorY="middle">ON</Text>
+            <Text position={[0, -0.88, 0.065]} rotation={[0, 0, -Math.PI/2]} fontSize={0.12} color="#a3a3a3" anchorX="center" anchorY="middle">OFF</Text>
+            <Text position={[0, -1.1, 0.06]} rotation={[0, 0, -Math.PI/2]} fontSize={0.10} color="#777" anchorX="center" anchorY="middle">POWER</Text>
         </group>
     );
 };
@@ -299,7 +331,7 @@ const PressableDeviceButton = ({ position, onClick, disabled, children }: { posi
 };
 
 const RecorderModel = () => {
-    const { t, setDeviceState, deviceState, audioUrl, simulationMode, language } = useAppContext();
+    const { t, deviceState, audioUrl, simulationMode, language } = useAppContext();
     const { handleStartRecording, handleStopRecording, handlePlayAudio } = useAudioRecorder();
 
     // High fidelity main body dimensions
@@ -324,7 +356,7 @@ const RecorderModel = () => {
             
             {/* Elegant Screen Trim */}
             <RoundedBox args={[2.26, 1.76, 0.03]} radius={0.08} smoothness={8} position={[0, 1.8, depth/2 + 0.01]}>
-                <meshStandardMaterial color="#f8fafc" roughness={0.2} metalness={0.9} />
+                <meshStandardMaterial color="#1d2228" roughness={0.25} metalness={0.78} />
             </RoundedBox>
 
             {/* Screen Bezel Window (Glossy Black) */}
@@ -390,7 +422,7 @@ const RecorderModel = () => {
                    <meshStandardMaterial color="#ef4444" roughness={0.3} />
                </Cylinder>
                {/* Label */}
-               <Text position={[0, -0.75, 0.05]} fontSize={0.16} color="#a3a3a3" anchorX="center" anchorY="middle" font="https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff">REC</Text>
+               <Text position={[0, -0.75, 0.05]} fontSize={0.22} color="#d4d4d4" anchorX="center" anchorY="middle" font="https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff">REC</Text>
             </PressableDeviceButton>
 
             {/* STOP Button Assembly (Right Top) */}
@@ -408,13 +440,13 @@ const RecorderModel = () => {
                <Plane args={[0.1, 0.1]} position={[0, 0, 0.05]}>
                     <meshBasicMaterial color="#111" />
                </Plane>
-               <Text position={[0, -0.55, 0.05]} fontSize={0.13} color="#a3a3a3" anchorX="center" anchorY="middle">STOP</Text>
+               <Text position={[0, -0.55, 0.05]} fontSize={0.15} color="#d4d4d4" anchorX="center" anchorY="middle">↩/STOP</Text>
             </PressableDeviceButton>
 
             {/* PLAY/PAUSE Button Assembly (Right Bottom) */}
             <PressableDeviceButton 
                 position={[0.65, -0.9, depth/2 + 0.01]}
-                onClick={() => { if (deviceState === "idle" && (audioUrl || simulationMode)) handlePlayAudio(audioUrl, simulationMode); }}
+                onClick={() => { if (deviceState === "idle" && (audioUrl || simulationMode)) handlePlayAudio(); }}
                 disabled={deviceState !== "idle" || (!audioUrl && !simulationMode)}
             >
                <Cylinder args={[0.42, 0.42, 0.06, 64]} rotation={[Math.PI / 2, 0, 0]}>
@@ -430,16 +462,16 @@ const RecorderModel = () => {
                    <Plane args={[0.03, 0.12]} position={[0.05, 0, 0]}><meshBasicMaterial color="#111" /></Plane>
                    <Plane args={[0.03, 0.12]} position={[0.1, 0, 0]}><meshBasicMaterial color="#111" /></Plane>
                </group>
-               <Text position={[0, -0.6, 0.05]} fontSize={0.13} color="#a3a3a3" anchorX="center" anchorY="middle">PLAY/PAUSE</Text>
+               <Text position={[0, -0.6, 0.05]} fontSize={0.15} color="#d4d4d4" anchorX="center" anchorY="middle">PLAY/PAUSE</Text>
             </PressableDeviceButton>
 
             {/* Front Speaker Matrix */}
-            <group position={[0, -2.2, depth/2 + 0.01]}>
-                {[...Array(40)].map((_, i) => {
-                    const row = Math.floor(i / 8);
-                    const col = i % 8;
+            <group position={[0, -1.9, depth/2 + 0.01]}>
+                {[...Array(42)].map((_, i) => {
+                    const row = Math.floor(i / 7);
+                    const col = i % 7;
                     return (
-                        <Cylinder key={i} args={[0.045, 0.045, 0.05, 12]} rotation={[Math.PI / 2, 0, 0]} position={[(col - 3.5) * 0.22, -row * 0.22, 0]}>
+                        <Cylinder key={i} args={[0.05, 0.05, 0.05, 16]} rotation={[Math.PI / 2, 0, 0]} position={[(col - 3) * 0.22, -row * 0.22, 0]}>
                             <meshStandardMaterial color="#000" roughness={0.9} />
                         </Cylinder>
                     );
@@ -447,7 +479,7 @@ const RecorderModel = () => {
             </group>
 
             {/* Bottom Logo */}
-            <Text position={[0, -3.15, depth/2 + 0.01]} fontSize={0.3} color="#cccccc" anchorX="center" anchorY="middle" font="https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff">
+            <Text position={[0, -3.15, depth/2 + 0.01]} fontSize={0.38} color="#d8d8d8" anchorX="center" anchorY="middle" font="https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff">
                BEETECH
             </Text>
 
@@ -456,6 +488,12 @@ const RecorderModel = () => {
                 {/* Silver bridge at top back */}
                 <RoundedBox args={[1.9, 0.8, 0.05]} radius={0.05} smoothness={8} position={[0, height/2 - 0.4, 0]}>
                     <meshStandardMaterial color="#f8fafc" roughness={0.2} metalness={0.9} />
+                </RoundedBox>
+                <RoundedBox args={[0.34, 0.16, 0.025]} radius={0.06} smoothness={12} position={[0, height/2 - 0.4, 0.035]}>
+                    <meshStandardMaterial color="#111317" roughness={0.45} metalness={0.65} />
+                </RoundedBox>
+                <RoundedBox args={[0.22, 0.065, 0.03]} radius={0.03} smoothness={12} position={[0, height/2 - 0.4, 0.052]}>
+                    <meshBasicMaterial color="#020202" />
                 </RoundedBox>
                 {/* Headset/Line-in icons at top bridge */}
                 <Text position={[-0.55, height/2 - 0.4, 0.03]} fontSize={0.15} color="#333" anchorX="center" anchorY="middle">🎧</Text>
@@ -511,6 +549,9 @@ const RecorderModel = () => {
 
             {/* --- RIGHT SIDE PANEL DETAILS --- */}
             <group position={[width/2, 0, 0]} rotation={[0, Math.PI/2, 0]}>
+                <RoundedBox args={[0.5, 6.25, 0.055]} radius={0.18} smoothness={12} position={[0, 0, -0.04]}>
+                    <meshStandardMaterial color="#d9dde1" roughness={0.24} metalness={0.92} />
+                </RoundedBox>
                 <group position={[0, 2.7, 0]}>
                     <Cylinder args={[0.3, 0.3, 0.08, 64]} rotation={[Math.PI/2, 0, 0]}>
                         <meshStandardMaterial color="#f8fafc" roughness={0.2} metalness={0.9} />
@@ -561,6 +602,9 @@ const RecorderModel = () => {
 
             {/* Left side equivalent for mic (symmetry facing LEFT, so rotation Y is -Math.PI/2) */}
             <group position={[-width/2, 0, 0]} rotation={[0, -Math.PI/2, 0]}>
+                <RoundedBox args={[0.5, 6.25, 0.055]} radius={0.18} smoothness={12} position={[0, 0, -0.04]}>
+                    <meshStandardMaterial color="#d9dde1" roughness={0.24} metalness={0.92} />
+                </RoundedBox>
                 <group position={[0, 2.7, 0]}>
                     <Cylinder args={[0.3, 0.3, 0.08, 64]} rotation={[Math.PI/2, 0, 0]}>
                         <meshStandardMaterial color="#f8fafc" roughness={0.2} metalness={0.9} />
@@ -700,5 +744,3 @@ export const Scene = () => {
         </Canvas>
     );
 };
-
-
