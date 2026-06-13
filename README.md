@@ -1,7 +1,16 @@
-# BeeTech BT-REC02 Recorder Demo
+# Interactive 3D Product Gallery
 
-Interactive React, Three.js, and Web Audio demo for the BeeTech BT-REC02
-recorder.
+This repository hosts independent interactive 3D product experiences.
+
+## Product Links
+
+- [BeeTech BT-REC02 Recorder](https://shai7net.github.io/Call-recorder-beetech/)
+- [Xtrike Me GP-52 Wireless Controller](https://shai7net.github.io/Call-recorder-beetech/products/xtrike-me-gp52/)
+- [All 3D Products](https://shai7net.github.io/Call-recorder-beetech/products/)
+
+The BeeTech experience remains at the repository root. New products live under
+their own folders in `public/products/`, so each brand has a separate URL and
+can evolve independently.
 
 ## Run Locally
 
